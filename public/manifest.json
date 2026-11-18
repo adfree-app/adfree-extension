@@ -2,51 +2,14 @@
   "manifest_version": 3,
   "name": "AdFree page runtime",
   "version": "0.1.0",
-  "description": "Runs the AdFree page runtime and its YouTube userscript in pages the proxy never sees, such as the ones a service worker serves from its cache.",
+  "description": "Asks the AdFree app what it would have injected into a page it never saw — a page a service worker served from its cache — and applies the answer.",
   "minimum_chrome_version": "111",
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN",
-      "all_frames": true,
-      "match_origin_as_fallback": true,
-      "js": [
-        "prelude.js"
-      ]
-    },
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "run_at": "document_start",
-      "world": "ISOLATED",
-      "all_frames": false,
-      "js": [
-        "content.js"
-      ]
-    },
-    {
-      "matches": [
-        "*://*.youtube.com/*",
-        "*://*.youtube-nocookie.com/*"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN",
-      "all_frames": false,
-      "js": [
-        "youtube.js"
-      ]
-    }
-  ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "permissions": [
-    "scripting"
+    "scripting",
+    "webNavigation"
   ],
   "host_permissions": [
     "<all_urls>"
