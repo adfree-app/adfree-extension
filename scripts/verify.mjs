@@ -17,18 +17,39 @@ const fail = (message) => {
   process.exit(1)
 }
 
-/** What each browser must be handed. */
+/** What each browser must be handed, and what only it may have. */
 const targets = {
-  chrome: (manifest) => manifest.background?.service_worker,
-  firefox: (manifest) => manifest.background?.scripts?.[0],
+  chrome: {
+    start: (manifest) => manifest.background?.service_worker,
+    // Firefox's key in a Chromium manifest is a background page nobody runs.
+    absent: ['background.scripts', 'browser_specific_settings'],
+  },
+  firefox: {
+    start: (manifest) => manifest.background?.scripts?.[0],
+    // A service worker is not what Firefox starts, and an add-on with no id
+    // cannot be signed, so an unsigned copy of this file ships nothing.
+    absent: ['background.service_worker'],
+    present: ['browser_specific_settings.gecko.id', 'browser_specific_settings.gecko.data_collection_permissions'],
+  },
 }
 
-for (const [name, startOf] of Object.entries(targets)) {
+/** Reads `a.b.c` out of a manifest, or undefined. */
+const at = (manifest, path) => path.split('.').reduce((value, key) => value?.[key], manifest)
+
+for (const [name, target] of Object.entries(targets)) {
   const folder = join(dist, name)
   const manifestPath = join(folder, 'manifest.json')
   if (!existsSync(manifestPath)) fail(`dist/${name}/manifest.json is missing — did the build run?`)
 
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+  const startOf = target.start
+
+  for (const key of target.absent ?? []) {
+    if (at(manifest, key) !== undefined) fail(`${name}: the manifest carries ${key}, which this browser does not run`)
+  }
+  for (const key of target.present ?? []) {
+    if (at(manifest, key) === undefined) fail(`${name}: the manifest is missing ${key}`)
+  }
 
   if (manifest.manifest_version !== 3) {
     fail(`${name}: manifest_version is ${manifest.manifest_version}, not 3`)
