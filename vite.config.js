@@ -1,18 +1,20 @@
-// The extension has no AdFree code in it: everything it injects comes from the
-// app at runtime. What is left is one worker, and this config is the shortest
-// way to bundle it and lay it down beside the manifest.
+// One entry, one file, no chunk splitting: the extension has a single program
+// and the browser loads it as a worker or as an event page. `scripts/build.mjs`
+// then lays that file down twice, once per browser, each beside its own
+// manifest.
 
 export default {
-  publicDir: 'public',
+  publicDir: false,
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     minify: false,
+    target: 'es2022',
     lib: {
-      entry: 'src/background.js',
+      entry: 'src/background.ts',
       formats: ['iife'],
       name: 'adfreeWorker',
       fileName: () => 'background.js',
     },
   },
-};
+}

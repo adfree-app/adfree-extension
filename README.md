@@ -56,9 +56,22 @@ after the first copy (`__adfree_runtime`) and the user scripts run once
 
 ```sh
 bun install
-bun run build          # -> dist (manifest.json, background.js, icons/)
+bun run typecheck      # tsc --noEmit over src/
+bun run build          # -> dist/chrome, dist/firefox
 bun run verify         # the checks a browser would do, before a tag does them
 ```
+
+The source is TypeScript; `src/api.ts` declares the two namespaces this file
+uses and nothing else, so the type says how little of the platform is in play.
+The build is one program and two manifest keys:
+
+| | `dist/chrome` | `dist/firefox` |
+| --- | --- | --- |
+| start | `background.service_worker` | `background.scripts` (event page) |
+| floor | Chrome 111 | Firefox 140 |
+| also | — | `browser_specific_settings.gecko` with the add-on id |
+
+Everything else is `manifest.json` at the root, copied into both.
 
 The four icons are the app's own, downscaled from its icon to the sizes a
 browser asks for (16/32/48/128). They are checked in under `public/icons/`, so a
@@ -71,7 +84,8 @@ nothing and says it worked, which is why CI runs this before it packs.
 
 ## Release
 
-Pushing a tag publishes `adfree-extension.zip`:
+Pushing a tag publishes `adfree-extension-chrome.zip` and
+`adfree-extension-firefox.zip`:
 
 ```sh
 git tag v0.2.0 && git push origin v0.2.0
@@ -82,8 +96,15 @@ nothing else carries a copy, so there is never a second one to go stale.
 
 ## Load it
 
-`chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-`dist` (or a folder unpacked from a release zip).
+Chromium: `chrome://extensions` → **Developer mode** → **Load unpacked** →
+`dist/chrome`, or a folder unpacked from the chrome zip.
+
+Firefox: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** →
+`dist/firefox/manifest.json`, or the manifest inside the firefox zip. A
+temporary add-on lasts until Firefox closes; a permanent install needs the
+add-on signed, which is what the Firefox zip is for. `web-ext lint` reports no
+errors and one warning — `DANGEROUS_EVAL`, because the plan's runtime is
+evaluated in the page's own world, which is the entire point of asking the app.
 
 Chrome 137 and later ignores `--load-extension` in Google-branded builds —
 `--disable-features=DisableLoadExtensionCommandLineSwitch` does not restore it
@@ -102,7 +123,7 @@ no new channel and no native-messaging host manifest.
 
 ## Verified
 
-YouTube watch page in Chrome 157, the extension loaded unpacked:
+YouTube watch page in Chrome 157, the chrome build loaded unpacked:
 
 | | value |
 | --- | --- |
@@ -122,7 +143,7 @@ and `mitm::proxy_tests` covers the paths it answers.
 | Repository | What it owns |
 | --- | --- |
 | `adfree` | the engine, the app, and the local origin that answers `/adfree-plan.json` |
-| `adfree-website` | the landing page and the install guide this extension's users read |
+| `adfree-app.github.io` | the landing page and the install guide this extension's users read |
 | `adfree-extension` (this one) | the browser half, and nothing else |
 
 The only contract between them is the plan document described above. It is
