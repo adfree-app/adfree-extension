@@ -57,17 +57,29 @@ after the first copy (`__adfree_runtime`) and the user scripts run once
 ```sh
 cd extension
 bun install
-bun run build          # -> extension/dist (background.js + manifest.json)
+bun run build          # -> extension/dist (background.js, manifest.json, icons/)
 ```
+
+The four icons are the app's own, downscaled from `website/public/app-icon.png`
+to the sizes a browser asks for (16/32/48/128). They are checked in under
+`public/icons/`, so a build needs no image tooling; regenerate them only when
+the app icon changes.
+
+`desktop/build.gradle.kts` copies `dist/` into the app's resources, which is
+how the app hands this folder over: Protection → Ad blocking → Extensions →
+**Install for this browser** writes it to `~/.local/share/adfree/extension` and
+puts the path on the clipboard.
 
 ## Load it
 
 `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-`extension/dist`.
+`extension/dist` (or the folder the app wrote for you).
 
-Chrome 137 and later ignores `--load-extension` in Google-branded builds, so
-this is the install path even for testing. For an automated run, the DevTools
-protocol method `Extensions.loadUnpacked` works on a browser started with
+Chrome 137 and later ignores `--load-extension` in Google-branded builds —
+`--disable-features=DisableLoadExtensionCommandLineSwitch` does not restore it
+either, which was checked against Chrome 157 — so this is the install path even
+for testing. For an automated run, the DevTools protocol method
+`Extensions.loadUnpacked` works on a browser started with
 `--enable-unsafe-extension-debugging`.
 
 ## The tunnel endpoint
@@ -92,4 +104,7 @@ YouTube watch page in Chrome 157, the extension loaded unpacked:
 | ads in `ytInitialData` | none |
 
 `cargo test --lib` covers the endpoint itself
-(`the_plan_endpoint_describes_what_the_proxy_would_have_injected`).
+(`the_plan_endpoint_describes_what_the_proxy_would_have_injected`), and
+`OwnBrowserExtensionTest` covers the hand-over: every file in the bundle is on
+the classpath, the manifest names the icons that ship, and the write lands where
+the UI says it will. `FullAppUiTest` clicks the button in the real window.
