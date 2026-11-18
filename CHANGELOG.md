@@ -19,8 +19,9 @@
 
 The extension is versioned on its own: it talks to the app over one endpoint
 whose answer is a document, so a new background script does not need a new app
-and the other way round. Releases are tags on this repository, and the zip on
-each release is what the website's install page links to.
+and the other way round. Releases are published by semantic-release from the
+commits on `main`; the two zips on each release are what the website's install
+page links to.
 
 ## 0.3.0
 
