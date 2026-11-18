@@ -55,25 +55,35 @@ after the first copy (`__adfree_runtime`) and the user scripts run once
 ## Build
 
 ```sh
-cd extension
 bun install
-bun run build          # -> extension/dist (background.js, manifest.json, icons/)
+bun run build          # -> dist (manifest.json, background.js, icons/)
+bun run verify         # the checks a browser would do, before a tag does them
 ```
 
-The four icons are the app's own, downscaled from `website/public/app-icon.png`
-to the sizes a browser asks for (16/32/48/128). They are checked in under
-`public/icons/`, so a build needs no image tooling; regenerate them only when
-the app icon changes.
+The four icons are the app's own, downscaled from its icon to the sizes a
+browser asks for (16/32/48/128). They are checked in under `public/icons/`, so a
+build needs no image tooling; regenerate them only when the app icon changes.
 
-`desktop/build.gradle.kts` copies `dist/` into the app's resources, which is
-how the app hands this folder over: Protection → Ad blocking → Extensions →
-**Install for this browser** writes it to `~/.local/share/adfree/extension` and
-puts the path on the clipboard.
+`bun run verify` is the release gate: the manifest has to agree with
+`package.json` on the version, and every file it names has to exist and be
+non-empty. A build that produces a manifest naming a missing icon installs
+nothing and says it worked, which is why CI runs this before it packs.
+
+## Release
+
+Pushing a tag publishes `adfree-extension.zip`:
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The website's install page and this repository's releases are the same file —
+nothing else carries a copy, so there is never a second one to go stale.
 
 ## Load it
 
 `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-`extension/dist` (or the folder the app wrote for you).
+`dist` (or a folder unpacked from a release zip).
 
 Chrome 137 and later ignores `--load-extension` in Google-branded builds —
 `--disable-features=DisableLoadExtensionCommandLineSwitch` does not restore it
@@ -103,8 +113,19 @@ YouTube watch page in Chrome 157, the extension loaded unpacked:
 | hiding rules applied | 2 stylesheets + 5 `<style>` rules |
 | ads in `ytInitialData` | none |
 
-`cargo test --lib` covers the endpoint itself
-(`the_plan_endpoint_describes_what_the_proxy_would_have_injected`), and
-`OwnBrowserExtensionTest` covers the hand-over: every file in the bundle is on
-the classpath, the manifest names the icons that ship, and the write lands where
-the UI says it will. `FullAppUiTest` clicks the button in the real window.
+The other half of that proof lives in the app: `cargo test --lib` covers the
+endpoint itself (`the_plan_endpoint_describes_what_the_proxy_would_have_injected`)
+and `mitm::proxy_tests` covers the paths it answers.
+
+## Relationship to the other repositories
+
+| Repository | What it owns |
+| --- | --- |
+| `adfree` | the engine, the app, and the local origin that answers `/adfree-plan.json` |
+| `adfree-website` | the landing page and the install guide this extension's users read |
+| `adfree-extension` (this one) | the browser half, and nothing else |
+
+The only contract between them is the plan document described above. It is
+deliberately a document and not a protocol: a field the app adds and this build
+does not know is ignored, and a field this build needs and the app stops sending
+is optional by construction.

@@ -2,11 +2,12 @@
   "name": "adfree-extension",
   "private": true,
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The AdFree page runtime, injected by the browser instead of the proxy",
   "scripts": {
     "dev": "vite build --watch --mode development",
-    "build": "vite build"
+    "build": "vite build",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "vite": "^8.3.8"
