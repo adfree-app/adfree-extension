@@ -6,6 +6,15 @@
 ### Bug Fixes
 
 * the release config is the file that runs ([075b187](https://github.com/adfree-app/adfree-extension/commit/075b1872b4b60775ea940d9bff031a6b8f737243))
+* the zips land beside the release, not inside the folder they pack ([e841cb9](https://github.com/adfree-app/adfree-extension/commit/e841cb93342b77e2c505be068a16a2a2acdffb01))
+* verify knows which browser it is holding ([08f1dbb](https://github.com/adfree-app/adfree-extension/commit/08f1dbb14e0f5cbd9f2fd68bf696e1ee390baf81))
+
+## [0.3.1](https://github.com/adfree-app/adfree-extension/compare/v0.3.0...v0.3.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* the release config is the file that runs ([075b187](https://github.com/adfree-app/adfree-extension/commit/075b1872b4b60775ea940d9bff031a6b8f737243))
 * verify knows which browser it is holding ([08f1dbb](https://github.com/adfree-app/adfree-extension/commit/08f1dbb14e0f5cbd9f2fd68bf696e1ee390baf81))
 
 The extension is versioned on its own: it talks to the app over one endpoint
