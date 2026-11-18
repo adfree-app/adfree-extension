@@ -1,0 +1,39 @@
+name: release
+
+# The version lives in one place — the commits. A `feat:` bumps the minor, a
+# `fix:` bumps the patch; semantic-release writes the new number into
+# package.json, builds the two zips from the manifests that now carry it, and
+# publishes them on a GitHub release with the notes written from the same
+# commits. Nothing is tagged by hand.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: install
+        run: bun install --frozen-lockfile
+
+      # What a browser would already refuse before a release is published.
+      - name: the bundle a browser accepts
+        run: bun run typecheck && bun run build && bun run verify
+
+      - name: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bunx semantic-release
