@@ -19,9 +19,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '..');
 const out = resolve(here, 'dist');
 
+// Copied out of the repository, where they are compiled into the core.
 const shared = [
   ['rust/src/mitm/page_runtime.js', 'runtime.js'],
   ['rust/assets/youtube.js', 'youtube.js'],
+];
+
+// Copied as they are: the content script is one message and the worker
+// imports nothing, so there is nothing for a bundler to do.
+const plain = [
+  ['src/content.js', 'content.js'],
+  ['src/background.js', 'background.js'],
 ];
 
 /** @returns {import('vite').Plugin} */
@@ -32,6 +40,9 @@ const copySharedAssets = () => ({
     mkdirSync(out, { recursive: true });
     for (const [from, to] of shared) {
       copyFileSync(resolve(repo, from), resolve(out, to));
+    }
+    for (const [from, to] of plain) {
+      copyFileSync(resolve(here, from), resolve(out, to));
     }
   },
 });

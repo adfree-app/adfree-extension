@@ -1,32 +1,51 @@
-# AdFree page runtime — browser extension
+# AdFree — browser extension
 
 The app filters traffic at the network layer, so it reaches every browser and
 every app on the machine. One case escapes it: a page a **service worker**
 answers from its cache. The document never crosses the wire, the proxy never
-sees its HTML, and nothing is injected — `window.__adfree_runtime` is
-`undefined` on that tab while every other page has it.
+sees its HTML, and nothing gets injected into it.
 
-This extension fills that hole the only way a page can be reached when it is
-not on the wire: from inside the document.
+This extension fills that hole, but it has no opinions of its own: everything
+it injects is the **app's answer**. When a page starts, it asks the app over
+the tunnel what the proxy would have injected, and it applies the answer
+itself.
 
-## What it does
+## How it works
 
-Two plain classic scripts, declared `world: "MAIN"` at `document_start`:
+```
+page starts (document_start)
+   │
+   ├─ MAIN world, from the bundle, immediately:
+   │    prelude.js     hands the runtime the app's local origin
+   │    youtube.js     intercepts ytInitialData/playerResponse, fetch/XHR
+   │                   (the one piece that cannot wait one round-trip)
+   │
+   ├─ isolated world, immediately:
+   │    content.js     "a page is starting, host H"
+   │
+   └─ the worker then:
+        GET https://yuuki-kagura.github.io/local/adfree-plan.json?dmn=H
+        ── the same engine that filters everything else answers with ──▶
+            { runtime, css, cosmetics, scripts }   (or nothing)
+        and injects it with chrome.scripting.executeScript(world: "MAIN"):
+            window.__adfree_page = cosmetics
+            CSSStyleSheet(css)                      ← constructable, no CSP
+            runtime.js                              ← the app's own file
+            the user scripts, as the app listed them
+```
 
-- `runtime.js` — the app's page runtime, byte for byte, so a page served from a
-  cache gets the same cosmetic rules as one that went through the MITM. It asks
-  the app for them at `https://yuuki-kagura.github.io/local/…`, the address the
-  proxy already serves.
-- `youtube.js` — the AdFree YouTube userscript: it scrubs `ytInitialData`,
-  `ytInitialPlayerResponse` and `/youtubei/v1/` responses before YouTube renders
-  them. This one genuinely needs `document_start` and the page's own world —
-  a loader that arrives over `import()` is a frame too late.
+Every part of the answer — the rules, the stylesheet URLs, the script list —
+is produced by the same code that writes the snippet into pages the proxy
+does see; the extension only turns that answer into DOM. A store script you
+install in the app is injected this way too: the plan lists it, the worker
+fetches its body from the app and runs it in the page's world (`unsafe-eval`
+where the page allows, a `<script src>` tag otherwise).
 
-`prelude.js` hands the runtime the base the proxy would have put in its tag.
+A page the proxy did inject carries its own tags, and doubly-injected parts
+are structurally neutral: the runtime returns early after the first copy
+(`__adfree_runtime`) and the user scripts run once (`__adfree_scripts_ran`).
 
-It does **not** filter requests: that stays in the app, which sees the wire.
-A store script you install in the app is not injected here yet; only the two
-built-ins above are.
+It does **not** filter requests. That stays on the wire, in the app.
 
 ## Build
 
@@ -36,8 +55,9 @@ bun install
 bun run build          # -> extension/dist
 ```
 
-`vite.config.js` copies `runtime.js` and `youtube.js` straight out of `rust/`,
-which is their single source of truth; Vite bundles only `src/prelude.js`.
+`vite.config.js` bundles `src/prelude.js` and copies the app's files — the
+page runtime and the YouTube userscript straight out of `rust/` — into
+`dist/`, so the bundle and the core can never drift.
 
 ## Load it
 
@@ -49,19 +69,25 @@ this is the install path even for testing. For an automated run, the DevTools
 protocol method `Extensions.loadUnpacked` works on a browser started with
 `--enable-unsafe-extension-debugging`.
 
+## The tunnel endpoint
+
+`/adfree-plan.json?dmn=…` is one of the app's local answers (see
+`take_local_request` in `rust/src/mitm/proxy.rs`). Same access path, same
+trust, no extension-specific registration: the tunnel already answers the
+hiding stylesheet and the cosmetics JSON the injected pages fetch, so the
+plan needs no new channel, no native-messaging host manifest and no fixed
+extension id.
+
 ## Verified
 
-On a YouTube watch page that a service worker answered (`workerStart ≈ 57 ms`):
+On a YouTube watch page a service worker served (`workerStart ≈ 13 ms`):
 
-| | without the extension | with it |
+| | plain Chrome | with the extension |
 | --- | --- | --- |
 | `window.__adfree_runtime` | `undefined` | `"page"` |
-| hiding rules in the document | 0 | 6 |
-| ad entries in `ytInitialData` / `ytInitialPlayerResponse` | — | none |
+| user scripts ran | — | once (`__adfree_scripts_ran = 1`) |
+| hiding rules applied | 0 | several |
+| ads in `ytInitialData` / `ytInitialPlayerResponse` | — | none |
 
-## One runtime per page
-
-`page_runtime.js` now returns early when `window.__adfree_runtime` is already
-set. Two injectors exist — the proxy's tag and this extension — and a page can
-carry both; the second copy would stack a second stylesheet and a second
-observer on the same document.
+and `cargo test --lib` covers the plan endpoint (`the_plan_
+endpoint_describes_what_the_proxy_would_have_injected`).
